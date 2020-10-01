@@ -27,8 +27,12 @@ fetch("http://localhost:3000/posts")
     console.log(info);
     info.data.forEach((p) => {
       const u = info.included.find((u) => u.id == p.relationships.user.data.id);
-      renderPost(p, u);
+      const post = new BlogPost(p);
     });
+    BlogPost.displayAll();
+  })
+  .catch((e) => {
+    console.log(e);
   });
 
 const createPost = (postInfo, form) => {
@@ -53,88 +57,89 @@ const createPost = (postInfo, form) => {
 
 const handleForm = (e) => {
   e.preventDefault();
-  createPost(
-    {
-      post: {
-        title: title.value,
-        content: content.value,
-        username: username.value,
-      },
-    },
-    e.target
-  );
+
+  const post = new BlogPost({
+    attributes: { title: title.value, content: content.value },
+    username: username.value,
+  });
+  post.persist();
 };
 
 document.querySelector("form").addEventListener("submit", handleForm);
 
-const wes = {
-  first: "Wes",
-  last: "Bos",
-  links: {
-    social: {
-      twitter: "https://twitter.com/wesbos",
-      facebook: "https://facebook.com/wesbos.developer",
-    },
-    web: {
-      blog: "https://wesbos.com",
-    },
-  },
-};
+class BlogPost {
+  static all = [];
 
-const nameLogger = ({ first = "Morgan", last }) => {
-  console.log(first);
-  console.log(last);
-};
+  constructor({ id, username, attributes: { title, content } }) {
+    this.title = title;
+    this.content = content;
+    this.id = id;
+    this.username = username;
+    this.constructor.all.push(this);
+  }
 
-// nameLogger(wes);
+  static displayAll() {
+    posts.innerHTML = "";
+    this.all.forEach((p) => {
+      p.display();
+    });
+  }
 
-function individualNameLogger(first, last) {
-  console.log(first);
-  console.log(last);
+  display() {
+    const div = document.createElement("div");
+    const h2 = document.createElement("h2");
+    h2.innerText = this.title;
+    div.appendChild(h2);
+    const para = document.createElement("p");
+    para.innerText = this.content;
+
+    div.appendChild(para);
+    // const author = document.createElement("p");
+    // author.innerText = `by: ${u.attributes.username}`;
+    // div.appendChild(author);
+    const button = document.createElement("button");
+    button.innerText = "X";
+    button.addEventListener("click", (e) => this.delete(e));
+    div.appendChild(button);
+    posts.appendChild(div);
+  }
+
+  persist() {
+    fetch("http://localhost:3000/posts", {
+      method: "post",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        post: {
+          title: this.title,
+          content: this.content,
+          username: this.username,
+        },
+      }),
+    })
+      .then((r) => r.json())
+      .then((info) => {
+        if (info.errors) {
+          console.log(info.errors);
+        } else {
+          newPost.reset();
+          // const u = info.included[0];
+          // renderPost(info.data, u);
+          this.id = info.data.id;
+          this.constructor.displayAll();
+        }
+      });
+  }
+
+  delete(e) {
+    fetch(`http://localhost:3000/posts/${this.id}`, {
+      method: "DELETE",
+    }).then(() => {
+      this.constructor.all = this.constructor.all.filter((p) => {
+        return p != this;
+      });
+      this.constructor.displayAll();
+    });
+  }
 }
-
-const array = [5, 4, 3, 2, 1, ["b", "c", "a"]];
-
-const newArray = [...array.slice(0, 5), [...array[5]]];
-
-const newWes = {
-  ...wes,
-  links: { social: { ...wes.links.social }, web: { ...wes.links.web } },
-};
-
-const names = { first: "Wes", last: "Bos" };
-
-const links = {
-  first: "Morgan",
-  social: {
-    twitter: "https://twitter.com/wesbos",
-    facebook: "https://facebook.com/wesbos.developer",
-  },
-  web: {
-    blog: "https://wesbos.com",
-  },
-};
-
-const person = { ...names, ...links };
-
-const thing = false;
-
-thing ? console.log("thing was true") : console.log("thing was not true");
-
-const name = thing ? "Morgan" : "Wes";
-
-const num1 = 1;
-const num2 = 2;
-const num3 = 3;
-
-function add(...rest) {
-  let sum = 0;
-  rest.forEach((num) => {
-    sum += num;
-  });
-  return sum;
-}
-
-sum = add(num1, num2, num3, 15, 22, 33, 11);
-
-console.log(sum);
